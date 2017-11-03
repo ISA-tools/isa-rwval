@@ -1,3 +1,5 @@
+This repo is forked from https://github.com/ISA-tools/isa-api/tree/py2_isatools-lite and needs some updating.
+
 <img align="left" src="http://www.isa-tools.org/wp-content/uploads/2016/03/isa-api-logo.png" width="150px">
 <br>
 
