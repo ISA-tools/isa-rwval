@@ -3,8 +3,8 @@
 from setuptools import setup
 
 setup(
-    name='isatools',
-    version='0.9.3-lite',
+    name='isatools.core',
+    version='0.9.3-core',
     packages=['isatools',
               'isatools.errors'
               ],
@@ -15,7 +15,7 @@ setup(
                 'experiments',
     author='ISA Infrastructure Team',
     author_email='isatools@googlegroups.com',
-    url='https://github.com/ISA-tools/isa-api',
+    url='https://github.com/ISA-tools/isatools-core',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',

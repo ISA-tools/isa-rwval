@@ -1,10 +1,12 @@
 """Tests on isatab.py package"""
 from __future__ import absolute_import
 import io
+import os
+import pandas as pd
+import unittest
+
 from isatools import isatab
 from isatools.model import *
-import unittest
-import os
 
 
 class InvestigationParserUnitTests(unittest.TestCase):
@@ -442,11 +444,77 @@ class StudySampleTableParserUnitTest(unittest.TestCase):
             u'Source Name\tProtocol REF\tSample Name\n' \
             u'source1\tsample collection\tsample1\n' \
             u'source2\tsample collection\tsample1'
+        
+        self.study_sample_table_source_characteristics_fragment = \
+            u'Source Name\tCharacteristics[c1]\tCharacteristics[c2]\n' \
+            u'source1\tsource1-c1\tsource1-c2\n' \
+            u'source2\tsource2-c1\tsource2-c2'
+        
+        self.study_sample_table_sample_characteristics_fragment = \
+            u'Sample Name\tCharacteristics[c1]\tCharacteristics[c2]\n' \
+            u'sample1\tsample1-c1\tsample1-c2\n' \
+            u'sample2\tsample2-c1\tsample2-c2'
+
+        self.study_sample_table_source_comments_fragment = \
+            u'Source Name\tComment[c1]\tComment[c2]\n' \
+            u'source1\tsource1-c1\tsource1-c2\n' \
+            u'source2\tsource2-c1\tsource2-c2'
+
+        self.study_sample_table_sample_comments_fragment = \
+            u'Sample Name\tComment[c1]\tComment[c2]\n' \
+            u'sample1\tsample1-c1\tsample1-c2\n' \
+            u'sample2\tsample2-c1\tsample2-c2'
 
         self.source_list = [Source(name='source1'), Source(name='source2')]
         self.sample_list = [Sample(name='sample1'), Sample(name='sample2')]
         self.sample_list_with_numbers_as_ids = [Sample(name='1'),
                                                 Sample(name='2')]
+        characteristic_category_c1 = OntologyAnnotation(term='c1')
+        characteristic_category_c2 = OntologyAnnotation(term='c2')
+        self.source_list_with_characteristics = [
+            Source(name='source1',
+                   characteristics=sorted([
+                       Characteristic(category=characteristic_category_c1,
+                                      value='source1-c1'),
+                       Characteristic(category=characteristic_category_c2,
+                                      value='source1-c2')])),
+            Source(name='source2',
+                   characteristics=sorted([
+                       Characteristic(characteristic_category_c1,
+                                      value='source2-c1'),
+                       Characteristic(category=characteristic_category_c2,
+                                      value='source2-c2')]))
+        ]
+        self.sample_list_with_characteristics = [
+            Sample(name='sample1',
+                   characteristics=sorted([
+                       Characteristic(category=characteristic_category_c1,
+                                      value='sample1-c1'),
+                        Characteristic(category=characteristic_category_c2,
+                                       value='sample1-c2')])),
+            Sample(name='sample2',
+                   characteristics=sorted([
+                       Characteristic(characteristic_category_c1,
+                                      value='sample2-c1'),
+                       Characteristic(category=characteristic_category_c2,
+                                      value='sample2-c2')]))
+        ]
+        self.source_list_with_comments = [
+            Source(name='source1',
+                   comments=sorted([Comment(name='c1', value='source1-c1'),
+                             Comment(name='c2', value='source1-c2')])),
+            Source(name='source2',
+                   comments=sorted([Comment(name='c1', value='source2-c1'),
+                             Comment(name='c2', value='source2-c2')]))
+        ]
+        self.sample_list_with_comments = [
+            Sample(name='sample1',
+                   comments=sorted([Comment(name='c1', value='sample1-c1'),
+                             Comment(name='c2', value='sample1-c2')])),
+            Sample(name='sample2',
+                   comments=sorted([Comment(name='c1', value='sample2-c1'),
+                             Comment(name='c2', value='sample2-c2')]))
+        ]
 
     def test_parse_sources(self):
         self.parser.parse(io.StringIO(self.study_sample_table))
@@ -505,6 +573,30 @@ class StudySampleTableParserUnitTest(unittest.TestCase):
                       self.parser.process_sequence[0].inputs)
         self.assertIn(self.sample_list[0],
                       self.parser.process_sequence[0].outputs)
+
+    def test_parse_sources_with_characteristics(self):
+        sources_dict = self.parser._parse_materials(pd.read_csv(io.StringIO(
+            self.study_sample_table_source_characteristics_fragment), sep='\t'))
+        self.assertSetEqual(set(self.source_list_with_characteristics),
+                            set(sources_dict.values()))
+        
+    def test_parse_samples_with_characteristics(self):
+        samples_dict = self.parser._parse_materials(pd.read_csv(io.StringIO(
+            self.study_sample_table_sample_characteristics_fragment), sep='\t'))
+        self.assertSetEqual(set(self.sample_list_with_characteristics),
+                            set(samples_dict.values()))
+
+    def test_parse_sources_with_comments(self):
+        sources_dict = self.parser._parse_materials(pd.read_csv(io.StringIO(
+            self.study_sample_table_source_comments_fragment), sep='\t'))
+        self.assertSetEqual(set(self.source_list_with_comments),
+                            set(sources_dict.values()))
+
+    def test_parse_samples_with_comments(self):
+        samples_dict = self.parser._parse_materials(pd.read_csv(io.StringIO(
+            self.study_sample_table_sample_comments_fragment), sep='\t'))
+        self.assertSetEqual(set(self.sample_list_with_comments),
+                            set(samples_dict.values()))
 
 
 class StudySampleTableParserIntegrationTest(unittest.TestCase):

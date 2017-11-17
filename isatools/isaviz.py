@@ -1,5 +1,6 @@
 """Functions for visualizing ISA content from ISA model objects."""
 from __future__ import absolute_import
+import logging
 import os
 import matplotlib
 if os.environ.get('DISPLAY','') == '':
@@ -8,6 +9,8 @@ if os.environ.get('DISPLAY','') == '':
 import matplotlib.pyplot as plt
 
 __author__ = 'djcomlab@gmail.com (David Johnson)'
+
+log = logging.getLogger(__name__)
 
 tableau_colours = ('tab:blue', 'tab:orange', 'tab:green', 'tab:red',
                    'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray',
@@ -53,6 +56,6 @@ def _make_pie(sizes, text, colours, labels, filename):
     kwargs = dict(size=20, fontweight='bold', va='center')
     ax.text(0, 0, text, ha='center', **kwargs)
     if filename == '':
-        plt.show()
+        plt.show()  # won't show in headless mode
     else:
         plt.savefig(filename, bbox_inches='tight')

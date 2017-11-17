@@ -25,7 +25,6 @@ from isatools.model import *
 
 __author__ = 'djcomlab@gmail.com (David Johnson)'
 
-logging.basicConfig(level=logging.ERROR)
 log = logging.getLogger(__name__)
 
 
@@ -101,7 +100,19 @@ class TableParser(AbstractParser):
     ASSAY_LABELS = ('Assay Name', 'MS Assay Name', 'Hybridization Assay Name',
                     'Scan Name', 'Data Transformation Name',
                     'Normalization Name')
-    ALL_LABELS = NODE_LABELS + ASSAY_LABELS + tuple('Protocol REF')
+    ALL_LABELS = NODE_LABELS + ASSAY_LABELS + tuple(['Protocol REF'])
+
+    # REGEXES
+    RX_I_FILE_NAME = re.compile('i_(.*?)\.txt')
+    RX_DATA = re.compile('data\[(.*?)\]')
+    RX_COMMENT = re.compile('Comment\[(.*?)\]')
+    RX_DOI = re.compile('(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![%"#? ])\\S)+)')
+    RX_PMID = re.compile('[0-9]{8}')
+    RX_PMCID = re.compile('PMC[0-9]{8}')
+    RX_CHARACTERISTICS = re.compile('Characteristics\[(.*?)\]')
+    RX_PARAMETER_VALUE = re.compile('Parameter Value\[(.*?)\]')
+    RX_FACTOR_VALUE = re.compile('Factor Value\[(.*?)\]')
+    RX_INDEXED_COL = re.compile('(.*?)\.\d+')
 
     @staticmethod
     def _find_lt(a, x):
@@ -128,12 +139,17 @@ class TableParser(AbstractParser):
     def __init__(self):
         self.node_map = OrderedDict()
         self.process_map = OrderedDict()
+        self.ontology_sources = OrderedDict()
+        self.characteristic_categories = OrderedDict()
+        self.unit_categories = OrderedDict()
 
     def _make_process_sequence(self, df):
+        """This function builds the process sequences and links nodes to
+        processes based on node keys calculated in the ISA-Tab tables"""
         df = df[[x for x in df.columns if
                  x.startswith(TableParser.ALL_LABELS)]]
         process_key_sequences = []
-        for rindex, row in df.iterrows():
+        for _, row in df.iterrows():
             process_key_sequence = []
             labels = df.columns
             nodes_index = [i for i, x in enumerate(labels) if
@@ -195,6 +211,58 @@ class TableParser(AbstractParser):
                 right_process = self.process_map[right]
                 plink(left_process, right_process)
 
+    def _get_value(self, base_column, object_column_group, row):
+        cell_value = row[base_column]
+        if cell_value == '':
+            return cell_value, None
+        column_index = list(object_column_group).index(base_column)
+        try:
+            offset_1r_col = object_column_group[column_index + 1]
+            offset_2r_col = object_column_group[column_index + 2]
+        except IndexError:
+            return cell_value, None
+        if offset_1r_col.startswith(
+                'Term Source REF') and offset_2r_col.startswith(
+                'Term Accession Number'):
+            value = OntologyAnnotation(term=str(cell_value))
+            term_source_value = row[offset_1r_col]
+            if term_source_value is not '':
+                try:
+                    value.term_source = self.ontology_sources[term_source_value]
+                except KeyError:
+                    log.debug('term source: ', term_source_value, ' not found')
+            term_accession_value = row[offset_2r_col]
+            if term_accession_value is not '':
+                value.term_accession = str(term_accession_value)
+            return value, None
+        try:
+            offset_3r_col = object_column_group[column_index + 3]
+        except IndexError:
+            return cell_value, None
+        if offset_1r_col.startswith('Unit') and offset_2r_col.startswith(
+                'Term Source REF') \
+                and offset_3r_col.startswith('Term Accession Number'):
+            category_key = row[offset_1r_col]
+            try:
+                unit_term_value = self.unit_categories[category_key]
+            except KeyError:
+                unit_term_value = OntologyAnnotation(term=category_key)
+                self.unit_categories[category_key] = unit_term_value
+                unit_term_source_value = row[offset_2r_col]
+                if unit_term_source_value is not '':
+                    try:
+                        unit_term_value.term_source = self.ontology_sources[
+                            unit_term_source_value]
+                    except KeyError:
+                        log.debug('term source: ', unit_term_source_value,
+                                  ' not found')
+                term_accession_value = row[offset_3r_col]
+                if term_accession_value is not '':
+                    unit_term_value.term_accession = term_accession_value
+            return cell_value, unit_term_value
+        else:
+            return cell_value, None
+
     def _parse(self, filebuffer):
         raise NotImplementedError(
             'Inherit from this class and implement this method')
@@ -252,10 +320,9 @@ class InvestigationParser(AbstractParser):
     @staticmethod
     def _parse_vertical_comments(section, section_obj):
         CommentGroup = namedtuple('CommentGroup', ['name', 'value'])
-        regex_comment = re.compile('Comment\[(.*?)\]')
-        comments = [(regex_comment.findall(x)[-1], section.get(x))
+        comments = [(TableParser.RX_COMMENT.findall(x)[-1], section.get(x))
                     for x in (x for x in section.keys() if
-                              regex_comment.match(x))]
+                              TableParser.RX_COMMENT.match(x))]
         for comment in comments:
             comment_group = CommentGroup._make(comment)
             for value in getattr(comment_group, 'value'):
@@ -265,11 +332,10 @@ class InvestigationParser(AbstractParser):
     @staticmethod
     def _parse_horizontal_comments(section, section_obj_list):
         CommentGroup = namedtuple('CommentGroup', ['name', 'value'])
-        regex_comment = re.compile('Comment\[(.*?)\]')
-        comment_groups = [CommentGroup._make((regex_comment.findall(x)[-1],
-                                             section.get(x)))
-                          for x in (x for x in section.keys() if
-                                    regex_comment.match(x))]
+        comment_groups = [
+            CommentGroup._make(
+                (TableParser.RX_COMMENT.findall(x)[-1], section.get(x))) for x
+            in (x for x in section.keys() if TableParser.RX_COMMENT.match(x))]
         for comment_group in comment_groups:
             for v, o in zip_longest(getattr(comment_group, 'value'),
                                     section_obj_list, fillvalue=''):
@@ -638,6 +704,46 @@ class InvestigationParser(AbstractParser):
                 self._parse_contacts_section(section_label, section)
 
 
+class IsaTabSeries(pd.Series):
+    @property
+    def _consutrctor(self):
+        return IsaTabSeries
+
+
+class IsaTabDataFrame(pd.DataFrame):
+
+    def __init__(self, *args, **kw):
+        super(IsaTabDataFrame, self).__init__(*args, **kw)
+
+    @property
+    def _constructor(self):
+        return IsaTabDataFrame
+
+    _constructor_sliced = IsaTabSeries
+
+    @staticmethod
+    def _clean_label(label):
+        for clean_label in TableParser.ALL_LABELS:
+            if label.strip().lower().startswith(clean_label.lower()):
+                return clean_label
+            elif TableParser.RX_CHARACTERISTICS.match(label):
+                return 'Characteristics[{val}]'.format(
+                    val=next(iter(TableParser.RX_CHARACTERISTICS.findall(label))))
+            elif TableParser.RX_PARAMETER_VALUE.match(label):
+                return 'Parameter Value[{val}]'.format(
+                    val=next(iter(TableParser.RX_PARAMETER_VALUE.findall(label))))
+            elif TableParser.RX_FACTOR_VALUE.match(label):
+                return 'Factor Value[{val}]'.format(
+                    val=next(iter(TableParser.RX_FACTOR_VALUE.findall(label))))
+            elif TableParser.RX_COMMENT.match(label):
+                return 'Comment[{val}]'.format(
+                    val=next(iter(TableParser.RX_COMMENT.findall(label))))
+
+    @property
+    def isatab_header(self):
+        return list(map(lambda x: self._clean_label(x), self.columns))
+
+
 class StudySampleTableParser(TableParser):
 
     def __init__(self, isa=None):
@@ -646,28 +752,135 @@ class StudySampleTableParser(TableParser):
             raise IOError('You must provide an Investigation object output '
                           'from the Investigation parser')
         self.isa = isa
-        self.sources = None
-        self.samples = None
-        self.process_sequence = None
+        self.sources = []
+        self.samples = []
+        self.characteristic_categories = dict()
+        self.unit_categories = dict()
+        self.process_sequence = []
+    
+    def _parse_object_characteristics(self, labels, row):
+        characteristics = set()
+        for base_column in [x for x in labels if x.startswith(
+                ('Characteristics', 'Material Type'))]:
+            if base_column.startswith('Material Type'):
+                category_key = 'Material Type'
+            else:
+                category_key = base_column[16:-1]
+            try:
+                category = self.characteristic_categories[
+                    category_key]
+            except KeyError:
+                category = OntologyAnnotation(term=category_key)
+                self.characteristic_categories[category_key] = category
+            characteristic = Characteristic(category=category)
+            value, unit = self._get_value(base_column, labels, row)
+            characteristic.value = value
+            characteristic.unit = unit
+            characteristics.add(characteristic)
+        return sorted(list(characteristics))
+    
+    def _parse_object_comments(self, labels, row):
+        comments = set()
+        for base_column in [x for x in labels if x.startswith('Comment')]:
+            comment = Comment(name=base_column[8:-1])
+            value, unit = self._get_value(base_column, labels, row)
+            comment.value = value
+            comment.unit = unit
+            comments.add(comment)
+        return sorted(list(comments))
+    
+    def _parse_materials(self, material_df):
+        materials = []
+        for _, row in material_df.drop_duplicates().iterrows():
+            material_label = next(iter(material_df.columns))
+            if material_label.startswith('Source Name'):
+                material = Source(name=row[material_label])
+            elif material_label.startswith('Sample Name'):
+                material = Sample(name=row[material_label])            
+            material.characteristics = self._parse_object_characteristics(
+                material_df.columns, row)
+            material.comments = self._parse_object_comments(
+                material_df.columns, row)
+            materials.append(material)
+        materials_dict = dict(
+            map(lambda x: ('.'.join([material_label, x.name]), x), materials))
+        return materials_dict
+    
+    def _parse_data_files(self, data_file_df):
+        data_files = []
+        for _, row in data_file_df.drop_duplicates().iterrows():
+            data_file_label = next(iter(data_file_df.columns))
+            if data_file_label.startswith('Raw Data File'):
+                data_file = RawDataFile(filename=row[data_file_label])
+            elif data_file_label.startswith('Derived Data File'):
+                data_file = DerivedDataFile(filename=row[data_file_label])
+            elif data_file_label.startswith('Derived Spectral Data File'):
+                data_file = DerivedSpectralDataFile(
+                    filename=row[data_file_label])
+            elif data_file_label.startswith('Derived Array Data File'):
+                data_file = DerivedArrayDataFile(filename=row[data_file_label])
+            elif data_file_label.startswith('Array Data File'):
+                data_file = ArrayDataFile(filename=row[data_file_label])
+            elif data_file_label.startswith('Protein Assignment File'):
+                data_file = ProteinAssignmentFile(filename=row[data_file_label])
+            elif data_file_label.startswith('Peptide Assignment File'):
+                data_file = PeptideAssignmentFile(filename=row[data_file_label])
+            elif data_file_label.startswith(
+                    'Post Translational Modification Assignment File'):
+                data_file = PostTranslationalModificationAssignmentFile(
+                    filename=row[data_file_label])
+            elif data_file_label.startswith('Acquisition Parameter Data File'):
+                data_file = AcquisitionParameterDataFile(
+                    filename=row[data_file_label])
+            elif data_file_label.startswith('Free Induction Decay Data File'):
+                data_file = FreeInductionDecayDataFile(filename=row[data_file_label])
+            # elif data_file_label.startswith('Image File'):
+            #     data_file = ImageFile(filename=row[data_file_label])
+            # elif data_file_label.startswith('Metabolite Assignment File'):
+            #     data_file = MetaboliteAssignmentFile(filename=row[data_file_label])
+            elif data_file_label.startswith('Raw Spectral Data File'):
+                data_file = RawSpectralDataFile(filename=row[data_file_label])
+            data_file.comments = self._parse_object_comments(
+                data_file_df.columns, row)
+            data_files.append(data_file)
+        data_files_dict = dict(
+            map(lambda x: ('.'.join([data_file_label, x.name]), x), data_files))
+        return data_files_dict
+
+    def _parse_protocol_ref(self, protocol_ref_df):
+        pass
 
     def _parse(self, filebuffer):
-        df = pd.read_csv(filebuffer, dtype=str, sep='\t', encoding='utf-8',
-                         comment='#').replace(np.nan, '')
-        sources = dict(
-            map(lambda x: ('.'.join(['Source Name', x]), Source(name=x)),
-                [str(x) for x in df['Source Name'].drop_duplicates()
-                 if x != '']))
-        samples_series = pd.concat(map(lambda x: df[x].dropna(),
-                                    (x for x in df.columns if
-                                     x.startswith('Sample Name'))))
-        samples = dict(
-            map(lambda x: ('.'.join(['Sample Name', x]), Sample(name=x)),
-                samples_series))
-        self.sources = list(sources.values())
-        self.node_map.update(sources)
-        self.samples = list(samples.values())
-        self.node_map.update(samples)
-        self._make_process_sequence(df)
+        isa_df = IsaTabDataFrame(
+            pd.read_csv(filebuffer, dtype=str, sep='\t', encoding='utf-8',
+                        comment='#').replace(np.nan, ''))
+        isatab_header = isa_df.isatab_header
+        object_index = [
+            i for i, x in enumerate(isatab_header) if
+            x in TableParser.MATERIAL_LABELS + TableParser.DATA_FILE_LABELS +
+            tuple(['Protocol REF'])]
+        object_columns_grouped = []
+        prev_i = next(iter(object_index))
+        for curr_i in object_index:
+            if prev_i != curr_i:
+                object_columns_grouped.append(isa_df.columns[prev_i:curr_i])
+            prev_i = curr_i
+            object_columns_grouped.append(isa_df.columns[prev_i:])
+        for object_column_group in object_columns_grouped:
+            object_label = next(iter(object_column_group))  # indicates object
+            chopped_isa_df = isa_df[object_column_group]  # chopped is cut by column. sliced is cut by row
+            if object_label.startswith('Source Name'):
+                sources = self._parse_materials(chopped_isa_df)
+                self.node_map.update(sources)
+            elif object_label.startswith('Sample Name'):
+                samples = self._parse_materials(chopped_isa_df)
+                self.node_map.update(samples)
+        self.sources = [v for k, v in self.node_map.items() if
+                        k.startswith('Source Name')]
+        self.samples = [v for k, v in self.node_map.items() if
+                        k.startswith('Sample Name')]
+        # self._attach_factors(isa_df)  TODO: Go through table again and attach factors to Samples
+        self._make_process_sequence(isa_df)
         self.process_sequence = list(self.process_map.values())
 
 
@@ -905,18 +1118,18 @@ class InvestigationValidator(AbstractValidator):
                     'column-number': None,
                     'code': 'empty-row'
                 })
-                if label not in section_keywords + section_labels or \
-                        not re.match('Comment\[(.*?)\]', label):
-                    self.errors.append(
-                        {
-                            'row-number': sec_index,
-                            'message': 'Row label {row_label} is not recognized'
-                            .format(row_label=label),
-                            'row': row,
-                            'column-number': None,
-                            'code': 'invalid-row-label'
-                        }
-                    )
+            elif label not in section_keywords + section_labels or \
+                    not TableParser.RX_COMMENT.match(label):
+                self.errors.append(
+                    {
+                        'row-number': sec_index,
+                        'message': 'Row label {row_label} is not recognized'
+                        .format(row_label=label),
+                        'row': row,
+                        'column-number': None,
+                        'code': 'invalid-row-label'
+                    }
+                )
 
 
 class StudySampleTableValidator(AbstractValidator):
@@ -948,9 +1161,9 @@ class StudySampleTableValidator(AbstractValidator):
         for col_index, label in enumerate(labels):
             if label not in study_sample_heading_labels + other_heading_labels \
                     or \
-                    not re.match('Characteristics\[(.*?)\]', label) or \
-                    not re.match('Factor Value\[(.*?)\]', label) or \
-                    not re.match('Comment\[(.*?)\]', label):
+                    not TableParser.RX_CHARACTERISTICS.match(label) or \
+                    not TableParser.RX_FACTOR_VALUE.match(label) or \
+                    not TableParser.RX_COMMENT.match(label):
                 self.errors.append(
                     {
                         'row-number': 0,

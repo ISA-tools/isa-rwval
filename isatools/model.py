@@ -78,7 +78,8 @@ class Comment(object):
     def value(self, val):
         if isinstance(val, string_types):
             self.__value = val
-        raise ISAModelAttributeError('Comment.value must be a string')
+        else:
+            raise ISAModelAttributeError('Comment.value must be a string')
 
     def __repr__(self):
         return "isatools.model.Comment(name='{comment.name}', " \

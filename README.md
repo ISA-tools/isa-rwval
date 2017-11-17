@@ -15,7 +15,16 @@ To find out who's using ISA and about the ISA development and user community, se
 
 The *ISA API*  aims to provide you, the developer, with a set of tools to help you easily and quickly build your own ISA objects, validate, and convert between serializations of ISA-formatted datasets and other formats/schemas (e.g. SRA schemas). The ISA API is published on PyPI as the `isatools` package.
 
-`isatools` is currently only supported in Python 3.4+.
+This project is the `isatools-rwval` package that provides ISA format read/write/validation functionality that the ISA API builds on.
+
+Thie project contains the following modules:
+
+ - `isatools.model` contains classes implementing the ISA Abstract Model as Python objects.
+ - `isatools.isatab` contains features for parsing and serializing the ISA-Tab format to/from Python objects. The module also contains a ISA-Tab validator.
+ - `isatools.isajson` contains features for parsing and serializing the ISA-JSON format to/from Python objects. The module also contains a ISA-JSON validator.
+ - `isatools.isaviz` contains features for rendering ISA Python objects in visual artifacts with `matplotlib`.
+
+ These modules should be considered the gold-standard utilities for using the ISA formats with the Python programming language.
 
 [![Py versions](https://img.shields.io/pypi/pyversions/isatools.svg?style=flat&maxAge=3600)](https://pypi.python.org/pypi/isatools/)
 [![Build Status](https://travis-ci.org/ISA-tools/isa-api.svg?branch=master)](https://travis-ci.org/ISA-tools/isa-api/)
@@ -24,23 +33,14 @@ The *ISA API*  aims to provide you, the developer, with a set of tools to help y
 [![Documentation Status](https://readthedocs.org/projects/isatools/badge/?version=latest)](http://isatools.readthedocs.org/en/latest/?badge=latest)
 
 ----
-*Authors*: [The ISA team](http://www.isa-tools.org/team/).
+*Authors*: [Code contributors](https://github.com/ISA-tools/isatools-core/graphs/contributors).
 
-*License*:      This code is licensed under the [CPAL License](https://raw.githubusercontent.com/ISA-tools/isa-api/master/LICENSE.txt).
+*License*: This code is licensed under the [? License](https://raw.githubusercontent.com/ISA-tools/isatools-core/master/LICENSE.txt).
 
-*Repository*:   [https://github.com/ISA-tools/isa-api](https://github.com/ISA-tools/isa-api)
+*Repository*: [https://github.com/ISA-tools/isatools-core](https://github.com/ISA-tools/isatools-core)
 
 *ISA team email*: [isatools@googlegroups.com](mailto:isatools@googlegroups.com)
 
 *ISA discussion group*: [https://groups.google.com/forum/#!forum/isaforum](https://groups.google.com/forum/#!forum/isaforum)
 
-*Github issue tracker*: [https://github.com/ISA-tools/isa-api/issues](https://github.com/ISA-tools/isa-api/issues)
-
-----
-Using the ISA-API
------------------
-To install and start using the ISA-API, check out the project documentation at [isatools.readthedocs.org](https://isatools.readthedocs.org).
-
-Contributing
-------------
-The ISA-API is still in development. We would be very happy to receive any help and contributions (testing, feature requests, pull requests). Please feel free to contact our development team at [isatools@googlegroups.com](mailto:isatools@googlegroups.com), or ask a question, report a bug or file a feature request in the Github issue tracker at [https://github.com/ISA-tools/isa-api/issues](https://github.com/ISA-tools/isa-api/issues).
+*Github issue tracker*: [https://github.com/ISA-tools/isa-api/issues](https://github.com/ISA-tools/isatools-core/issues)
