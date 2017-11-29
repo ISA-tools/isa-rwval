@@ -473,47 +473,47 @@ class StudySampleTableParserUnitTest(unittest.TestCase):
         characteristic_category_c2 = OntologyAnnotation(term='c2')
         self.source_list_with_characteristics = [
             Source(name='source1',
-                   characteristics=sorted([
+                   characteristics=[
                        Characteristic(category=characteristic_category_c1,
                                       value='source1-c1'),
                        Characteristic(category=characteristic_category_c2,
-                                      value='source1-c2')])),
+                                      value='source1-c2')]),
             Source(name='source2',
-                   characteristics=sorted([
+                   characteristics=[
                        Characteristic(characteristic_category_c1,
                                       value='source2-c1'),
                        Characteristic(category=characteristic_category_c2,
-                                      value='source2-c2')]))
+                                      value='source2-c2')])
         ]
         self.sample_list_with_characteristics = [
             Sample(name='sample1',
-                   characteristics=sorted([
+                   characteristics=[
                        Characteristic(category=characteristic_category_c1,
                                       value='sample1-c1'),
                         Characteristic(category=characteristic_category_c2,
-                                       value='sample1-c2')])),
+                                       value='sample1-c2')]),
             Sample(name='sample2',
-                   characteristics=sorted([
+                   characteristics=[
                        Characteristic(characteristic_category_c1,
                                       value='sample2-c1'),
                        Characteristic(category=characteristic_category_c2,
-                                      value='sample2-c2')]))
+                                      value='sample2-c2')])
         ]
         self.source_list_with_comments = [
             Source(name='source1',
-                   comments=sorted([Comment(name='c1', value='source1-c1'),
-                             Comment(name='c2', value='source1-c2')])),
+                   comments=[Comment(name='c1', value='source1-c1'),
+                             Comment(name='c2', value='source1-c2')]),
             Source(name='source2',
-                   comments=sorted([Comment(name='c1', value='source2-c1'),
-                             Comment(name='c2', value='source2-c2')]))
+                   comments=[Comment(name='c1', value='source2-c1'),
+                             Comment(name='c2', value='source2-c2')])
         ]
         self.sample_list_with_comments = [
             Sample(name='sample1',
-                   comments=sorted([Comment(name='c1', value='sample1-c1'),
-                             Comment(name='c2', value='sample1-c2')])),
+                   comments=[Comment(name='c1', value='sample1-c1'),
+                             Comment(name='c2', value='sample1-c2')]),
             Sample(name='sample2',
-                   comments=sorted([Comment(name='c1', value='sample2-c1'),
-                             Comment(name='c2', value='sample2-c2')]))
+                   comments=[Comment(name='c1', value='sample2-c1'),
+                             Comment(name='c2', value='sample2-c2')])
         ]
 
     def test_parse_sources(self):

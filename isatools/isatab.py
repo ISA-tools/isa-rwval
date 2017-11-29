@@ -777,7 +777,7 @@ class StudySampleTableParser(TableParser):
             characteristic.value = value
             characteristic.unit = unit
             characteristics.add(characteristic)
-        return sorted(list(characteristics))
+        return sorted(list(characteristics), key=lambda x: x.category.term)
     
     def _parse_object_comments(self, labels, row):
         comments = set()
@@ -787,7 +787,7 @@ class StudySampleTableParser(TableParser):
             comment.value = value
             comment.unit = unit
             comments.add(comment)
-        return sorted(list(comments))
+        return sorted(list(comments), key=lambda x: x.name)
     
     def _parse_materials(self, material_df):
         materials = []
