@@ -17,6 +17,7 @@ import numpy as np
 import os
 import pandas as pd
 import re
+import sys
 from collections import namedtuple
 from collections import OrderedDict
 from six.moves import zip_longest, zip
@@ -26,6 +27,15 @@ from isatools.model import *
 __author__ = 'djcomlab@gmail.com (David Johnson)'
 
 log = logging.getLogger(__name__)
+
+
+# Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3
+def utf8_text_file_open(path):
+    if sys.version_info[0] < 3:
+        fp = open(path, 'rb')
+    else:
+        fp = open(path, 'r', newline='', encoding='utf8')
+    return fp
 
 
 class Sniffer(object):
@@ -38,7 +48,7 @@ class Sniffer(object):
 
     def sniff(self, filepath_or_buffer):
         if isinstance(filepath_or_buffer, str):
-            with open(filepath_or_buffer, 'rU') as filebuffer:
+            with utf8_text_file_open(filepath_or_buffer) as filebuffer:
                 return self._sniff(filebuffer)
         else:
             return self._sniff(filepath_or_buffer)
@@ -73,7 +83,7 @@ class AbstractParser(object):
 
     def parse(self, filepath_or_buffer):
         if isinstance(filepath_or_buffer, str):
-            with open(filepath_or_buffer, 'rU') as filebuffer:
+            with utf8_text_file_open(filepath_or_buffer) as filebuffer:
                 self._parse(filebuffer)
         else:
             self._parse(filepath_or_buffer)

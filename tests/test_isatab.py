@@ -900,3 +900,7 @@ class ParserIntegrationTest(unittest.TestCase):
                 len(self.parser.isa.studies[1].assays[-1].other_material), 28)
             self.assertEqual(
                 len(self.parser.isa.studies[1].assays[-1].process_sequence), 30)
+
+    def test_parser_with_MTBLS30_2(self):
+        self.parser.parse(os.path.join(
+            self._tab_data_dir, 'MTBLS30-2', 'i_investigation.txt'))
