@@ -202,14 +202,20 @@ class TableParser(AbstractParser):
             for left, right in self._pairwise(process_key_sequence):
                 if left.startswith(TableParser.NODE_LABELS) and not \
                         right.startswith(TableParser.NODE_LABELS):
-                    material = self.node_map[left]
+                    try:
+                        material = self.node_map[left]
+                    except KeyError:
+                        continue
                     process = self.process_map[right]
                     if material not in process.inputs:
                         process.inputs.append(material)
                 elif not left.startswith(TableParser.NODE_LABELS) and \
                         right.startswith(TableParser.NODE_LABELS):
                     process = self.process_map[left]
-                    material = self.node_map[right]
+                    try:
+                        material = self.node_map[right]
+                    except KeyError:
+                        continue
                     if material not in process.outputs:
                         process.outputs.append(material)
         for process_key_sequence in process_key_sequences:
