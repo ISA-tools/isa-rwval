@@ -15,7 +15,7 @@ setup(
                 'experiments',
     author='ISA Infrastructure Team',
     author_email='isatools@googlegroups.com',
-    url='https://github.com/ISA-tools/isatools-core',
+    url='https://github.com/ISA-tools/isa-rwval',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
