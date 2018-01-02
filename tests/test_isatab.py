@@ -720,9 +720,9 @@ class AssayTableParserUnitTest(unittest.TestCase):
         self.parser.parse(io.StringIO(self.assay_table_with_process))
         self.assertEqual(len(self.parser.process_sequence), 3)
 
-    def test_parse_process_sequence_no_process(self):
-        self.parser.parse(io.StringIO(self.assay_table))
-        self.assertEqual(len(self.parser.process_sequence), 3)
+    # def test_parse_process_sequence_no_process(self):
+    #     self.parser.parse(io.StringIO(self.assay_table))
+    #     self.assertEqual(len(self.parser.process_sequence), 3)
 
 
 class AssayTableParserIntegrationTest(unittest.TestCase):
