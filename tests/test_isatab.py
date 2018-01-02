@@ -608,6 +608,12 @@ class StudySampleTableParserIntegrationTest(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_isatab_parse_study_no_investigation_object(self):
+        with self.assertRaises(IOError):
+            isatab.StudySampleTableParser()
+        with self.assertRaises(IOError):
+            isatab.StudySampleTableParser(isa=object())
+
     def test_isatab_parse_study_table_bii_s_1(self):
         with io.open(os.path.join(self._tab_data_dir, 'BII-I-1',
                                   'i_investigation.txt')) as fp:
@@ -711,8 +717,11 @@ class AssayTableParserUnitTest(unittest.TestCase):
             sorted(self.other_material_list, key=lambda x: repr(x)))
 
     def test_parse_process_sequence(self):
-        self.parser.parse(
-            io.StringIO(self.assay_table_with_process))
+        self.parser.parse(io.StringIO(self.assay_table_with_process))
+        self.assertEqual(len(self.parser.process_sequence), 3)
+
+    def test_parse_process_sequence_no_process(self):
+        self.parser.parse(io.StringIO(self.assay_table))
         self.assertEqual(len(self.parser.process_sequence), 3)
 
 

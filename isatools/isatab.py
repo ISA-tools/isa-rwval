@@ -153,6 +153,75 @@ class TableParser(AbstractParser):
         self.characteristic_categories = OrderedDict()
         self.unit_categories = OrderedDict()
 
+    def _insert_missing_protocol_refs(self, df):
+        raise NotImplementedError()  # TODO: Finish implementation
+        df = df[[x for x in df.columns if
+                 x.startswith(TableParser.ALL_LABELS)]]
+        labels = df.columns
+        nodes_index = [i for i, x in enumerate(labels) if
+                       x in TableParser.NODE_LABELS]
+        missing_protocol_ref_indicies = []
+        for cindex, label in enumerate(labels):
+            if not label.startswith('Protocol REF'):
+                output_node_index = self._find_gt(nodes_index, cindex)
+                if output_node_index > -1:
+                    output_node_label = labels[output_node_index]
+                    if output_node_label in TableParser.MATERIAL_LABELS + \
+                        TableParser.DATA_FILE_LABELS + TableParser.ASSAY_LABELS:
+                        missing_protocol_ref_indicies.append(output_node_index)
+        offset = 0
+        for i in reversed(missing_protocol_ref_indicies):
+            inferred_protocol_type = ''
+            leftcol = labels[self._find_lt(nodes_index, i)]
+            rightcol = labels[i]
+            if leftcol == 'Source Name' and rightcol == 'Sample Name':
+                inferred_protocol_type = 'sample collection'
+            elif leftcol == 'Sample Name' and rightcol == 'Extract Name':
+                inferred_protocol_type = 'extraction'
+            elif leftcol == 'Extract Name' and rightcol == \
+                    'Labeled Extract Name':
+                inferred_protocol_type = 'labeling'
+            elif leftcol == 'Labeled Extract Name' and rightcol in (
+                    'Assay Name', 'MS Assay Name'):
+                inferred_protocol_type = 'library sequencing'
+            elif leftcol == 'Extract Name' and rightcol in (
+                    'Assay Name', 'MS Assay Name'):
+                inferred_protocol_type = 'library preparation'
+            elif leftcol == 'Scan Name' and rightcol == 'Raw Data File':
+                inferred_protocol_type = 'data acquisition'
+            elif leftcol == 'Assay Name' and rightcol == 'Normalization Name':
+                inferred_protocol_type = 'normalization'
+            elif leftcol == 'Normalization Name' and \
+                            rightcol == 'Data Transformation Name':
+                inferred_protocol_type = 'data transformation'
+            elif leftcol == 'Raw Data File' and \
+                            rightcol == 'Metabolite Identification File':
+                inferred_protocol_type = 'metabolite identification'
+            elif leftcol == 'Raw Data File' and \
+                            rightcol == 'Protein Identification File':
+                inferred_protocol_type = 'metabolite identification'
+            # Force use of unknown protocol always, until we can insert missing
+            # protocol from above inferences into study metadata
+            log.info('Inserting protocol {} in between {} and {}'.format(
+                inferred_protocol_type if inferred_protocol_type != '' else
+                'unknown', leftcol, rightcol))
+            protocol_ref_cols = [x for x in labels if
+                                 x.startswith('Protocol REF')]
+            num_protocol_refs = len(protocol_ref_cols)
+            df.insert(i, 'Protocol REF.{}'.format(num_protocol_refs + offset),
+                      'unknown' if inferred_protocol_type == '' else
+                      inferred_protocol_type)
+            offset += 1
+        return df
+
+    def _attach_factors(self, df):
+        df = df [[x for x in df.columns if x.startswith(
+            'Sample Name', 'Factor Value')]]
+        for _, row in df.iterrows():
+            sample = self.node_map['Sample Name.{sample_name}'.format(
+                sample_name=row['Sample Name'])]
+            print('attaching factor to sample: {}'.format(sample.name))
+
     def _make_process_sequence(self, df):
         """This function builds the process sequences and links nodes to
         processes based on node keys calculated in the ISA-Tab tables"""
@@ -722,7 +791,7 @@ class InvestigationParser(AbstractParser):
 
 class IsaTabSeries(pd.Series):
     @property
-    def _consutrctor(self):
+    def _constructor(self):
         return IsaTabSeries
 
 
@@ -744,10 +813,12 @@ class IsaTabDataFrame(pd.DataFrame):
                 return clean_label
             elif TableParser.RX_CHARACTERISTICS.match(label):
                 return 'Characteristics[{val}]'.format(
-                    val=next(iter(TableParser.RX_CHARACTERISTICS.findall(label))))
+                    val=next(iter(
+                        TableParser.RX_CHARACTERISTICS.findall(label))))
             elif TableParser.RX_PARAMETER_VALUE.match(label):
                 return 'Parameter Value[{val}]'.format(
-                    val=next(iter(TableParser.RX_PARAMETER_VALUE.findall(label))))
+                    val=next(iter(
+                        TableParser.RX_PARAMETER_VALUE.findall(label))))
             elif TableParser.RX_FACTOR_VALUE.match(label):
                 return 'Factor Value[{val}]'.format(
                     val=next(iter(TableParser.RX_FACTOR_VALUE.findall(label))))
@@ -764,7 +835,7 @@ class StudySampleTableParser(TableParser):
 
     def __init__(self, isa=None):
         TableParser.__init__(self)
-        if isa is None:
+        if not isinstance(isa, Investigation):
             raise IOError('You must provide an Investigation object output '
                           'from the Investigation parser')
         self.isa = isa
@@ -797,13 +868,24 @@ class StudySampleTableParser(TableParser):
     
     def _parse_object_comments(self, labels, row):
         comments = set()
-        for base_column in [x for x in labels if x.startswith('Comment')]:
+        for base_column in (x for x in labels if x.startswith('Comment')):
             comment = Comment(name=base_column[8:-1])
             value, unit = self._get_value(base_column, labels, row)
             comment.value = value
             comment.unit = unit
             comments.add(comment)
         return sorted(list(comments), key=lambda x: x.name)
+
+    def _parse_object_factor_values(self, labels, row):
+        factor_values = set()
+        for base_column in (x for x in labels if x.startswith('Factor Value')):
+            factor_value = FactorValue(factor_name=StudyFactor(
+                name=base_column[13:-1]))  # TODO: Check is in Study obj
+            value, unit = self._get_value(base_column, labels, row)
+            factor_value.value = value
+            factor_value.unit = unit
+            factor_values.add(factor_value)
+        return sorted(list(factor_values), key=lambda x: x.factor_name.name)
     
     def _parse_materials(self, material_df):
         materials = []
@@ -812,10 +894,12 @@ class StudySampleTableParser(TableParser):
             if material_label.startswith('Source Name'):
                 material = Source(name=row[material_label])
             elif material_label.startswith('Sample Name'):
-                material = Sample(name=row[material_label])            
+                material = Sample(name=row[material_label])
             material.characteristics = self._parse_object_characteristics(
                 material_df.columns, row)
             material.comments = self._parse_object_comments(
+                material_df.columns, row)
+            material.factor_values = self._parse_object_factor_values(
                 material_df.columns, row)
             materials.append(material)
         materials_dict = dict(
@@ -849,7 +933,8 @@ class StudySampleTableParser(TableParser):
                 data_file = AcquisitionParameterDataFile(
                     filename=row[data_file_label])
             elif data_file_label.startswith('Free Induction Decay Data File'):
-                data_file = FreeInductionDecayDataFile(filename=row[data_file_label])
+                data_file = FreeInductionDecayDataFile(
+                    filename=row[data_file_label])
             # elif data_file_label.startswith('Image File'):
             #     data_file = ImageFile(filename=row[data_file_label])
             # elif data_file_label.startswith('Metabolite Assignment File'):
@@ -895,7 +980,6 @@ class StudySampleTableParser(TableParser):
                         k.startswith('Source Name')]
         self.samples = [v for k, v in self.node_map.items() if
                         k.startswith('Sample Name')]
-        # self._attach_factors(isa_df)  TODO: Go through table again and attach factors to Samples
         self._make_process_sequence(isa_df)
         self.process_sequence = list(self.process_map.values())
 
@@ -904,7 +988,7 @@ class AssayTableParser(TableParser):
 
     def __init__(self, isa=None):
         TableParser.__init__(self)
-        if isa is None:
+        if not isinstance(isa, Investigation):
             raise IOError('You must provide an Investigation object output '
                           'from the Investigation parser')
         self.isa = isa
