@@ -2352,7 +2352,8 @@ class ParameterValue(object):
     @value.setter
     def value(self, val):
         if val is not None \
-                and not isinstance(val, (string_types, int, float, OntologyAnnotation)):
+                and not isinstance(
+                    val, (string_types, int, float, OntologyAnnotation)):
             raise ISAModelAttributeError(
                 'ParameterValue.value must be a string, numeric, an '
                 'OntologyAnnotation, or None; got {0}:{1}'
@@ -2617,7 +2618,8 @@ class Characteristic(Commentable):
     @value.setter
     def value(self, val):
         if val is not None \
-                and not isinstance(val, (string_types, int, float, OntologyAnnotation)):
+                and not isinstance(
+                    val, (string_types, int, float, OntologyAnnotation)):
             raise ISAModelAttributeError(
                 'Characteristic.value must be a string, numeric, an '
                 'OntologyAnnotation, or None; got {0}:{1}'
@@ -2996,7 +2998,8 @@ class FactorValue(Commentable):
     @value.setter
     def value(self, val):
         if val is not None \
-                and not isinstance(val, (unicode, str, int, float, OntologyAnnotation)):
+                and not isinstance(
+                    val, (string_types, int, float, OntologyAnnotation)):
             raise ISAModelAttributeError(
                 'FactorValue.value must be a string, numeric, an '
                 'OntologyAnnotation, or None; got {0}:{1}'
