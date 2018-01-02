@@ -903,4 +903,4 @@ class ParserIntegrationTest(unittest.TestCase):
 
     def test_parser_with_MTBLS30_2(self):
         self.parser.parse(os.path.join(
-            self._tab_data_dir, 'MTBLS30-2', 'i_investigation.txt'))
+            self._tab_data_dir, 'MTBLS30-2', 'i_Investigation.txt'))
