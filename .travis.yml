@@ -11,10 +11,10 @@ script:
 - tox
 - coverage run --source isatools -m py.test
 - coverage report -m
-branches:
-  only:
-    - master
-    - develop
+#branches:
+#  only:
+#    - master
+#    - develop
 deploy:
   provider: pypi
   user: zigur
