@@ -9,10 +9,10 @@ install:
 - pip install tox-travis
 script:
 - tox
-#- coverage run --source isatools -m py.test
-#- coverage report -m
-- pip uninstall --yes matplotlib pandas numpy tox-travis
-- pip freeze
+- coverage run --source isatools -m py.test
+- coverage report -m
+- tests/my-pip-uninstall matplotlib pandas numpy tox-travis
+- rm -rf .tox
 - PYTHONPATH="${PWD}" python tests/test_isatab_only_meta.py
 #branches:
 #  only:
