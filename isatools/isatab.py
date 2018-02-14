@@ -4,8 +4,8 @@ from __future__ import print_function
 import logging
 
 try:
-    import numpy as np
     import pandas as pd
+    import numpy as np
     import sys
     print("getting pandas from", pd.__path__, file=sys.stderr)
     from .isatab_meta import *
