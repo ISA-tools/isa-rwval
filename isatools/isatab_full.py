@@ -125,9 +125,9 @@ class TableParser(AbstractParser):
                 inferred_protocol_type = 'metabolite identification'
             # Force use of unknown protocol always, until we can insert missing
             # protocol from above inferences into study metadata
-            log.info('Inserting protocol {} in between {} and {}'.format(
-                inferred_protocol_type if inferred_protocol_type != '' else
-                'unknown', leftcol, rightcol))
+            log.info('Inserting protocol %s in between %s and %s', 
+                inferred_protocol_type if inferred_protocol_type != '' else 'unknown',
+                leftcol, rightcol)
             protocol_ref_cols = [x for x in labels if
                                  x.startswith('Protocol REF')]
             num_protocol_refs = len(protocol_ref_cols)
@@ -143,7 +143,7 @@ class TableParser(AbstractParser):
         for _, row in df.iterrows():
             sample = self.node_map['Sample Name.{sample_name}'.format(
                 sample_name=row['Sample Name'])]
-            print('attaching factor to sample: {}'.format(sample.name))
+            log.info('attaching factor to sample: %s', sample.name)
 
     def _make_process_sequence(self, df):
         """This function builds the process sequences and links nodes to
@@ -229,16 +229,15 @@ class TableParser(AbstractParser):
             offset_2r_col = object_column_group[column_index + 2]
         except IndexError:
             return cell_value, None
-        if offset_1r_col.startswith(
-                'Term Source REF') and offset_2r_col.startswith(
-                'Term Accession Number'):
+        if offset_1r_col.startswith('Term Source REF') and \
+           offset_2r_col.startswith('Term Accession Number'):
             value = OntologyAnnotation(term=str(cell_value))
             term_source_value = row[offset_1r_col]
             if term_source_value is not '':
                 try:
                     value.term_source = self.ontology_sources[term_source_value]
                 except KeyError:
-                    log.debug('term source: ', term_source_value, ' not found')
+                    log.debug('term source: %s not found', term_source_value)
             term_accession_value = row[offset_2r_col]
             if term_accession_value is not '':
                 value.term_accession = str(term_accession_value)
@@ -262,8 +261,7 @@ class TableParser(AbstractParser):
                         unit_term_value.term_source = self.ontology_sources[
                             unit_term_source_value]
                     except KeyError:
-                        log.debug('term source: ', unit_term_source_value,
-                                  ' not found')
+                        log.debug('term source: %s not found', unit_term_source_value)
                 term_accession_value = row[offset_3r_col]
                 if term_accession_value is not '':
                     unit_term_value.term_accession = term_accession_value
