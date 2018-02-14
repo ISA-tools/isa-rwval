@@ -36,16 +36,16 @@ class TableParser(AbstractParser):
     ALL_LABELS = NODE_LABELS + ASSAY_LABELS + tuple(['Protocol REF'])
 
     # REGEXES
-    RX_I_FILE_NAME = re.compile('i_(.*?)\.txt')
-    RX_DATA = re.compile('data\[(.*?)\]')
-    RX_COMMENT = re.compile('Comment\[(.*?)\]')
-    RX_DOI = re.compile('(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![%"#? ])\\S)+)')
-    RX_PMID = re.compile('[0-9]{8}')
-    RX_PMCID = re.compile('PMC[0-9]{8}')
-    RX_CHARACTERISTICS = re.compile('Characteristics\[(.*?)\]')
-    RX_PARAMETER_VALUE = re.compile('Parameter Value\[(.*?)\]')
-    RX_FACTOR_VALUE = re.compile('Factor Value\[(.*?)\]')
-    RX_INDEXED_COL = re.compile('(.*?)\.\d+')
+    RX_I_FILE_NAME = re.compile(r'i_(.*?)\.txt')
+    RX_DATA = re.compile(r'data\[(.*?)\]')
+    RX_COMMENT = re.compile(r'Comment\[(.*?)\]')
+    RX_DOI = re.compile(r'(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![%"#? ])\\S)+)')
+    RX_PMID = re.compile(r'[0-9]{8}')
+    RX_PMCID = re.compile(r'PMC[0-9]{8}')
+    RX_CHARACTERISTICS = re.compile(r'Characteristics\[(.*?)\]')
+    RX_PARAMETER_VALUE = re.compile(r'Parameter Value\[(.*?)\]')
+    RX_FACTOR_VALUE = re.compile(r'Factor Value\[(.*?)\]')
+    RX_INDEXED_COL = re.compile(r'(.*?)\.\d+')
 
     @staticmethod
     def _find_lt(a, x):
