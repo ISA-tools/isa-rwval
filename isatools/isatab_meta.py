@@ -9,11 +9,16 @@ Don't forget to read the ISA-Tab spec:
 http://isa-specs.readthedocs.io/en/latest/isatab.html
 """
 from __future__ import absolute_import
+
 import csv
 import itertools
 import logging
 import os
+import re
 import sys
+
+from bisect import bisect_left, bisect_right
+from collections import OrderedDict
 from collections import namedtuple
 from six.moves import zip_longest, zip
 
@@ -521,6 +526,263 @@ class InvestigationParser(AbstractParser):
             if any(x in section_label for x in (
                     'INVESTIGATION CONTACTS', 'STUDY CONTACTS')):
                 self._parse_contacts_section(section_label, section)
+
+class TableParser(AbstractParser):
+
+    DATA_FILE_LABELS = (
+        'Raw Data File', 'Derived Spectral Data File',
+        'Derived Array Data File', 'Array Data File',
+        'Protein Assignment File', 'Peptide Assignment File',
+        'Post Translational Modification Assignment File',
+        'Acquisition Parameter Data File', 'Free Induction Decay Data File',
+        'Derived Array Data Matrix File', 'Image File', 'Derived Data File',
+        'Metabolite Assignment File', 'Raw Spectral Data File')
+    MATERIAL_LABELS = ('Source Name', 'Sample Name', 'Extract Name',
+                       'Labeled Extract Name')
+    OTHER_MATERIAL_LABELS = ('Extract Name', 'Labeled Extract Name')
+    NODE_LABELS = DATA_FILE_LABELS + MATERIAL_LABELS + OTHER_MATERIAL_LABELS
+    ASSAY_LABELS = ('Assay Name', 'MS Assay Name', 'Hybridization Assay Name',
+                    'Scan Name', 'Data Transformation Name',
+                    'Normalization Name')
+    ALL_LABELS = NODE_LABELS + ASSAY_LABELS + tuple(['Protocol REF'])
+
+    # REGEXES
+    RX_I_FILE_NAME = re.compile(r'i_(.*?)\.txt')
+    RX_DATA = re.compile(r'data\[(.*?)\]')
+    RX_COMMENT = re.compile(r'Comment\[(.*?)\]')
+    RX_DOI = re.compile(r'(10[.][0-9]{4,}(?:[.][0-9]+)*/(?:(?![%"#? ])\\S)+)')
+    RX_PMID = re.compile(r'[0-9]{8}')
+    RX_PMCID = re.compile(r'PMC[0-9]{8}')
+    RX_CHARACTERISTICS = re.compile(r'Characteristics\[(.*?)\]')
+    RX_PARAMETER_VALUE = re.compile(r'Parameter Value\[(.*?)\]')
+    RX_FACTOR_VALUE = re.compile(r'Factor Value\[(.*?)\]')
+    RX_INDEXED_COL = re.compile(r'(.*?)\.\d+')
+
+    @staticmethod
+    def _find_lt(a, x):
+        i = bisect_left(a, x)
+        if i:
+            return a[i - 1]
+        else:
+            return -1
+
+    @staticmethod
+    def _find_gt(a, x):
+        i = bisect_right(a, x)
+        if i != len(a):
+            return a[i]
+        else:
+            return -1
+
+    @staticmethod
+    def _clean_label(label):
+        for clean_label in TableParser.ALL_LABELS:
+            if label.startswith(clean_label):
+                return clean_label
+
+    def __init__(self):
+        self.node_map = OrderedDict()
+        self.process_map = OrderedDict()
+        self.ontology_sources = OrderedDict()
+        self.characteristic_categories = OrderedDict()
+        self.unit_categories = OrderedDict()
+
+    def _insert_missing_protocol_refs(self, df):
+        raise NotImplementedError()  # TODO: Finish implementation
+        df = df[[x for x in df.columns if
+                 x.startswith(TableParser.ALL_LABELS)]]
+        labels = df.columns
+        nodes_index = [i for i, x in enumerate(labels) if
+                       x in TableParser.NODE_LABELS]
+        missing_protocol_ref_indicies = []
+        for cindex, label in enumerate(labels):
+            if not label.startswith('Protocol REF'):
+                output_node_index = self._find_gt(nodes_index, cindex)
+                if output_node_index > -1:
+                    output_node_label = labels[output_node_index]
+                    if output_node_label in TableParser.MATERIAL_LABELS + \
+                        TableParser.DATA_FILE_LABELS + TableParser.ASSAY_LABELS:
+                        missing_protocol_ref_indicies.append(output_node_index)
+        offset = 0
+        for i in reversed(missing_protocol_ref_indicies):
+            inferred_protocol_type = ''
+            leftcol = labels[self._find_lt(nodes_index, i)]
+            rightcol = labels[i]
+            if leftcol == 'Source Name' and rightcol == 'Sample Name':
+                inferred_protocol_type = 'sample collection'
+            elif leftcol == 'Sample Name' and rightcol == 'Extract Name':
+                inferred_protocol_type = 'extraction'
+            elif leftcol == 'Extract Name' and rightcol == \
+                    'Labeled Extract Name':
+                inferred_protocol_type = 'labeling'
+            elif leftcol == 'Labeled Extract Name' and rightcol in (
+                    'Assay Name', 'MS Assay Name'):
+                inferred_protocol_type = 'library sequencing'
+            elif leftcol == 'Extract Name' and rightcol in (
+                    'Assay Name', 'MS Assay Name'):
+                inferred_protocol_type = 'library preparation'
+            elif leftcol == 'Scan Name' and rightcol == 'Raw Data File':
+                inferred_protocol_type = 'data acquisition'
+            elif leftcol == 'Assay Name' and rightcol == 'Normalization Name':
+                inferred_protocol_type = 'normalization'
+            elif leftcol == 'Normalization Name' and \
+                            rightcol == 'Data Transformation Name':
+                inferred_protocol_type = 'data transformation'
+            elif leftcol == 'Raw Data File' and \
+                            rightcol == 'Metabolite Identification File':
+                inferred_protocol_type = 'metabolite identification'
+            elif leftcol == 'Raw Data File' and \
+                            rightcol == 'Protein Identification File':
+                inferred_protocol_type = 'metabolite identification'
+            # Force use of unknown protocol always, until we can insert missing
+            # protocol from above inferences into study metadata
+            log.info('Inserting protocol %s in between %s and %s', 
+                inferred_protocol_type if inferred_protocol_type != '' else 'unknown',
+                leftcol, rightcol)
+            protocol_ref_cols = [x for x in labels if
+                                 x.startswith('Protocol REF')]
+            num_protocol_refs = len(protocol_ref_cols)
+            df.insert(i, 'Protocol REF.{}'.format(num_protocol_refs + offset),
+                      'unknown' if inferred_protocol_type == '' else
+                      inferred_protocol_type)
+            offset += 1
+        return df
+
+    def _attach_factors(self, df):
+        df = df [[x for x in df.columns if x.startswith(
+            'Sample Name', 'Factor Value')]]
+        for _, row in df.iterrows():
+            sample = self.node_map['Sample Name.{sample_name}'.format(
+                sample_name=row['Sample Name'])]
+            log.info('attaching factor to sample: %s', sample.name)
+
+    def _make_process_sequence(self, df):
+        """This function builds the process sequences and links nodes to
+        processes based on node keys calculated in the ISA-Tab tables"""
+        df = df[[x for x in df.columns if
+                 x.startswith(TableParser.ALL_LABELS)]]
+        process_key_sequences = []
+        for _, row in df.iterrows():
+            process_key_sequence = []
+            labels = df.columns
+            nodes_index = [i for i, x in enumerate(labels) if
+                           x in TableParser.NODE_LABELS]
+            for cindex, label in enumerate(labels):
+                val = row[label]
+                if label.startswith('Protocol REF') and val != '':
+                    output_node_index = self._find_gt(nodes_index, cindex)
+                    if output_node_index > -1:
+                        output_node_label = labels[output_node_index]
+                        output_node_val = row[output_node_label]
+                    input_node_index = self._find_lt(nodes_index, cindex)
+                    if input_node_index > -1:
+                        input_node_label = labels[input_node_index]
+                        input_node_val = row[input_node_label]
+                    input_nodes_with_prot_keys = df.loc[
+                        df[labels[cindex]] == val].groupby(
+                        [labels[cindex], labels[input_node_index]]).size()
+                    output_nodes_with_prot_keys = df.loc[
+                        df[labels[cindex]] == val].groupby(
+                        [labels[cindex], labels[output_node_index]]).size()
+                    if len(input_nodes_with_prot_keys) > len(
+                            output_nodes_with_prot_keys):
+                        process_key = '.'.join([val, output_node_val.strip()])
+                    elif len(input_nodes_with_prot_keys) < len(
+                            output_nodes_with_prot_keys):
+                        process_key = '.'.join([input_node_val.strip(), val])
+                    else:
+                        process_key = '.'.join([input_node_val.strip(), val,
+                                                output_node_val.strip()])
+                    if process_key not in self.process_map.keys():
+                        process = Process(id_=process_key)
+                        self.process_map[process_key] = process
+                    process_key_sequence.append(process_key)
+                elif label.startswith(TableParser.NODE_LABELS):
+                    process_key_sequence.append(
+                        '.'.join([self._clean_label(label), val]))
+            process_key_sequences.append(process_key_sequence)
+        for process_key_sequence in process_key_sequences:
+            for left, right in self._pairwise(process_key_sequence):
+                if left.startswith(TableParser.NODE_LABELS) and not \
+                        right.startswith(TableParser.NODE_LABELS):
+                    try:
+                        material = self.node_map[left]
+                    except KeyError:
+                        continue
+                    process = self.process_map[right]
+                    if material not in process.inputs:
+                        process.inputs.append(material)
+                elif not left.startswith(TableParser.NODE_LABELS) and \
+                        right.startswith(TableParser.NODE_LABELS):
+                    process = self.process_map[left]
+                    try:
+                        material = self.node_map[right]
+                    except KeyError:
+                        continue
+                    if material not in process.outputs:
+                        process.outputs.append(material)
+        for process_key_sequence in process_key_sequences:
+            process_only_key_sequence = filter(
+                lambda x: not x.startswith(TableParser.NODE_LABELS),
+                process_key_sequence)
+            for left, right in self._pairwise(process_only_key_sequence):
+                left_process = self.process_map[left]
+                right_process = self.process_map[right]
+                plink(left_process, right_process)
+
+    def _get_value(self, base_column, object_column_group, row):
+        cell_value = row[base_column]
+        if cell_value == '':
+            return cell_value, None
+        column_index = list(object_column_group).index(base_column)
+        try:
+            offset_1r_col = object_column_group[column_index + 1]
+            offset_2r_col = object_column_group[column_index + 2]
+        except IndexError:
+            return cell_value, None
+        if offset_1r_col.startswith('Term Source REF') and \
+           offset_2r_col.startswith('Term Accession Number'):
+            value = OntologyAnnotation(term=str(cell_value))
+            term_source_value = row[offset_1r_col]
+            if term_source_value is not '':
+                try:
+                    value.term_source = self.ontology_sources[term_source_value]
+                except KeyError:
+                    log.debug('term source: %s not found', term_source_value)
+            term_accession_value = row[offset_2r_col]
+            if term_accession_value is not '':
+                value.term_accession = str(term_accession_value)
+            return value, None
+        try:
+            offset_3r_col = object_column_group[column_index + 3]
+        except IndexError:
+            return cell_value, None
+        if offset_1r_col.startswith('Unit') and offset_2r_col.startswith(
+                'Term Source REF') \
+                and offset_3r_col.startswith('Term Accession Number'):
+            category_key = row[offset_1r_col]
+            try:
+                unit_term_value = self.unit_categories[category_key]
+            except KeyError:
+                unit_term_value = OntologyAnnotation(term=category_key)
+                self.unit_categories[category_key] = unit_term_value
+                unit_term_source_value = row[offset_2r_col]
+                if unit_term_source_value is not '':
+                    try:
+                        unit_term_value.term_source = self.ontology_sources[
+                            unit_term_source_value]
+                    except KeyError:
+                        log.debug('term source: %s not found', unit_term_source_value)
+                term_accession_value = row[offset_3r_col]
+                if term_accession_value is not '':
+                    unit_term_value.term_accession = term_accession_value
+            return cell_value, unit_term_value
+        else:
+            return cell_value, None
+
+    def _parse(self, filebuffer):
+        raise NotImplementedError(
+            'Inherit from this class and implement this method')
 
 class AbstractValidator(object):
 
