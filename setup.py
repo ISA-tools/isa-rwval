@@ -28,11 +28,12 @@ setup(
         'Programming Language :: Python :: 3.6'
         ],
     install_requires=[
-        'numpy',
-        'pandas',
         'networkx',
         'six',
-        'matplotlib'
     ],
+    extras_require={
+        'viz': ['matplotlib'],
+        'tables': ['pandas', 'numpy']
+    },
     test_suite='tests'
 )
