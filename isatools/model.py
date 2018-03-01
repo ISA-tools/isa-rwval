@@ -14,7 +14,6 @@ Todo:
 """
 from __future__ import absolute_import
 import abc
-import networkx as nx
 import warnings
 from six import string_types
 
@@ -24,6 +23,11 @@ from isatools.errors import ISAModelAttributeError
 def _build_assay_graph(process_sequence=list()):
     """:obj:`networkx.DiGraph` Returns a directed graph object based on a
     given ISA process sequence."""
+    try:
+        import networkx as nx
+    except ImportError as import_error:
+        raise RuntimeError('This feature of isatab.model requires the networkx '
+                           'Python module. Please install it.')
     g = nx.DiGraph()
     for process in process_sequence:
         if process.next_process is not None or len(

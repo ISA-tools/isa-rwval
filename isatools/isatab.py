@@ -13,9 +13,7 @@ from bisect import bisect_left, bisect_right
 import csv
 import itertools
 import logging
-import numpy as np
 import os
-import pandas as pd
 import re
 import sys
 from collections import namedtuple
@@ -27,6 +25,17 @@ from isatools.model import *
 __author__ = 'djcomlab@gmail.com (David Johnson)'
 
 log = logging.getLogger(__name__)
+
+
+
+try:
+    import pandas as pd
+    import numpy as np
+except ImportError as import_error:
+    raise RuntimeError(
+        'The Python pandas and numpy packages are required to use the isatab'
+        'module. Please install them or correct the following error:'
+        '\nImportError {}'.format(import_error))
 
 
 # Function for opening correctly a CSV file for csv.reader() for both Python 2 and 3

@@ -28,11 +28,7 @@ setup(
         'Programming Language :: Python :: 3.6'
         ],
     install_requires=[
-        'numpy',
-        'pandas',
-        'networkx',
-        'six',
-        'matplotlib'
+        'six'
     ],
     test_suite='tests'
 )
