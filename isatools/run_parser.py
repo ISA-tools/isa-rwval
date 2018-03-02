@@ -13,22 +13,31 @@ _RX_PARAMETER_VALUE = re.compile('Parameter Value\[(.*?)\]')
 _RX_FACTOR_VALUE = re.compile('Factor Value\[(.*?)\]')
 
 _RX_SOURCE = re.compile('^Source Name$')
-_RX_CHARACTERISTICS = re.compile('Characteristics\[(.*?)\]')
-_RX_COMMENT = re.compile('Comment\[(.*?)\]')
+_RX_SAMPLE = re.compile('^Sample Name$')
+_RX_CHARACTERISTICS = re.compile('^Characteristics\[(.*?)\]$')
+_RX_COMMENT = re.compile('^Comment\[(.*?)\]$')
 _RX_TERM_SOURCE_REF = re.compile('^Term Source REF$')
 _RX_TERM_ACCESSION_NUMBER = re.compile('^Term Accession Number$')
 _RX_PROTOCOL_REF = re.compile('^Protocol REF$')
 
 TOKEN_MAP = {
     'Source Name': _RX_SOURCE,
+    'Sample Name': _RX_SAMPLE,
     'Characteristics':_RX_CHARACTERISTICS,
     'Comment': _RX_COMMENT,
     'Protocol REF': _RX_PROTOCOL_REF
 }
 
+from model import Sample
+from model import Source
+
+CLASS_MAP = {
+    'Source Name': Source,
+    'Sample Name': Sample
+}
+
 
 def checkfor(token, nextcell):
-
     if isinstance(token, str):
         token_regex = TOKEN_MAP[token]
         if not token_regex.match(nextcell[0]):
@@ -70,26 +79,26 @@ def parse_comment(nextcell, mr_iter, cn):
     return nextcell, mr_iter, comment, cn
 
 
-def parse_source(context, nextcell, mr_iter, G, rn, cn):
+def parse_material(context, nextcell, mr_iter, G, rn, cn):
     if not nextcell[1].strip():
         raise SyntaxError("'{context}' value must not be empty".format(
             context=context))
     else:
-        from model import Source
-        print('parsing source at {loc}'.format(loc=(rn, cn)))
-        source = Source(name=nextcell[1])
+        materialClass = CLASS_MAP[context]
+        print('parsing {context} at {loc}'.format(context=context, loc=(rn, cn)))
+        material = materialClass(name=nextcell[1])
         nextcell = next(mr_iter)
         cn += 1
         while _RX_CHARACTERISTICS.match(nextcell[0]) or _RX_COMMENT.match(nextcell[0]):
             if _RX_CHARACTERISTICS.match(nextcell[0]):
                 print('parsing characteristic at {loc}'.format(loc=(rn, cn)))
                 nextcell, mr_iter, characteristic, cn = parse_characteristics(nextcell, mr_iter, cn)
-                source.characteristics.append(characteristic)
+                material.characteristics.append(characteristic)
             if _RX_COMMENT.match(nextcell[0]):
                 print('parsing comment at {loc}'.format(loc=(rn, cn)))
                 nextcell, mr_iter, comment, cn = parse_comment(nextcell, mr_iter, cn)
-                source.comments.append(comment)
-        G.add_node(source)
+                material.comments.append(comment)
+        G.add_node(material)
     return nextcell, mr_iter, G, cn
 
 
@@ -114,11 +123,14 @@ def parse_row(header, row, rn):
     nextcell = next(mr_iter)
     cn = 0
     checkfor('Source Name', nextcell)
-    nextcell, mr_iter, G, cn = parse_source('Source Name', nextcell, mr_iter, G, rn, cn)
-    checkfor('Protocol REF', nextcell)
-    print('Protocol REF', nextcell, mr_iter, G, rn, cn)
-    nextcell, mr_iter, G, cn = parse_protocol_ref('Protocol REF', nextcell, mr_iter, G, rn, cn)
-    return G
+    nextcell, mr_iter, G, cn = parse_material('Source Name', nextcell, mr_iter, G, rn, cn)
+    while nextcell:
+        checkfor('Protocol REF', nextcell)
+        print('Protocol REF', nextcell, mr_iter, G, rn, cn)
+        nextcell, mr_iter, G, cn = parse_protocol_ref('Protocol REF', nextcell, mr_iter, G, rn, cn)
+        checkfor('Sample Name', nextcell)
+        nextcell, mr_iter, G, cn = parse_material('Sample Name', nextcell, mr_iter, G, rn, cn)
+        return G
 
 
 with open('/Users/dj/Development/ISA/isatools-core/tests/data/tab/BII-I-1/s_BII-S-1.txt') as fp:
