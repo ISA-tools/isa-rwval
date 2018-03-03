@@ -16,6 +16,7 @@ _RX_SOURCE = re.compile('^Source Name$')
 _RX_SAMPLE = re.compile('^Sample Name$')
 _RX_CHARACTERISTICS = re.compile('^Characteristics\[(.*?)\]$')
 _RX_COMMENT = re.compile('^Comment\[(.*?)\]$')
+_RX_UNIT = re.compile('^Unit$')
 _RX_TERM_SOURCE_REF = re.compile('^Term Source REF$')
 _RX_TERM_ACCESSION_NUMBER = re.compile('^Term Accession Number$')
 _RX_PROTOCOL_REF = re.compile('^Protocol REF$')
@@ -68,6 +69,48 @@ def parse_characteristics(nextcell, mr_iter, cn):
     return nextcell, mr_iter, characteristic, cn
 
 
+def parse_factor_values(nextcell, mr_iter, cn):
+    from model import FactorValue, StudyFactor, OntologyAnnotation, OntologySource
+    factor_name = _RX_FACTOR_VALUE.findall(nextcell[0])[-1]
+    factor = StudyFactor(name=factor_name)
+    factor_value = FactorValue(factor_name=factor_name)
+    value = nextcell[1]
+    factor_value.value = value
+    nextcell = next(mr_iter)
+    cn += 1
+    if _RX_TERM_SOURCE_REF.match(nextcell[0]):
+        value = OntologyAnnotation(term=value)
+        value.term_source = OntologySource(name=nextcell[1])
+        nextcell = next(mr_iter)
+        cn += 1
+        checkfor(_RX_TERM_ACCESSION_NUMBER, nextcell)
+        value.term_accession = nextcell[1]
+        factor_value.value = value
+        try:
+            nextcell = next(mr_iter)
+            cn += 1
+        except StopIteration:
+            nextcell = None # EOF
+    elif _RX_UNIT.match(nextcell[0]):
+        # checkfor(_RX_UNIT, nextcell)
+        unit = OntologyAnnotation(term=nextcell[1])
+        nextcell = next(mr_iter)
+        cn += 1
+        #checkfor(_RX_TERM_SOURCE_REF, nextcell)
+        unit.term_source = OntologySource(name=nextcell[1])
+        nextcell = next(mr_iter)
+        cn += 1
+        checkfor(_RX_TERM_ACCESSION_NUMBER, nextcell)
+        unit.term_accession = nextcell[1]
+        factor_value.unit = unit
+        try:
+            nextcell = next(mr_iter)
+            cn += 1
+        except StopIteration:
+            nextcell = None # EOF
+    return nextcell, mr_iter, factor_value, cn
+
+
 def parse_comment(nextcell, mr_iter, cn):
     from model import Comment
     name = _RX_COMMENT.findall(nextcell[0])[-1]
@@ -79,7 +122,7 @@ def parse_comment(nextcell, mr_iter, cn):
     return nextcell, mr_iter, comment, cn
 
 
-def parse_material(context, nextcell, mr_iter, G, rn, cn):
+def parse_material(context, nextcell, mr_iter, rn, cn):
     if not nextcell[1].strip():
         raise SyntaxError("'{context}' value must not be empty".format(
             context=context))
@@ -89,20 +132,23 @@ def parse_material(context, nextcell, mr_iter, G, rn, cn):
         material = materialClass(name=nextcell[1])
         nextcell = next(mr_iter)
         cn += 1
-        while _RX_CHARACTERISTICS.match(nextcell[0]) or _RX_COMMENT.match(nextcell[0]):
+        while _RX_CHARACTERISTICS.match(nextcell[0]) or _RX_FACTOR_VALUE.match(nextcell[0]) or _RX_COMMENT.match(nextcell[0]):
             if _RX_CHARACTERISTICS.match(nextcell[0]):
                 print('parsing characteristic at {loc}'.format(loc=(rn, cn)))
                 nextcell, mr_iter, characteristic, cn = parse_characteristics(nextcell, mr_iter, cn)
                 material.characteristics.append(characteristic)
-            if _RX_COMMENT.match(nextcell[0]):
+            elif _RX_FACTOR_VALUE.match(nextcell[0]):
+                print('parsing factor value at {loc}'.format(loc=(rn, cn)))
+                nextcell, mr_iter, factor_value, cn = parse_factor_values(nextcell, mr_iter, cn)
+                material.factor_values.append(factor_value)
+            elif _RX_COMMENT.match(nextcell[0]):
                 print('parsing comment at {loc}'.format(loc=(rn, cn)))
                 nextcell, mr_iter, comment, cn = parse_comment(nextcell, mr_iter, cn)
                 material.comments.append(comment)
-        G.add_node(material)
-    return nextcell, mr_iter, G, cn
+    return nextcell, mr_iter, material, cn
 
 
-def parse_protocol_ref(context, nextcell, mr_iter, G, rn, cn):
+def parse_protocol_ref(context, nextcell, mr_iter, rn, cn):
     if not nextcell[1].strip():
         raise SyntaxError("'{context}' value must not be empty".format(
             context=context))
@@ -112,25 +158,26 @@ def parse_protocol_ref(context, nextcell, mr_iter, G, rn, cn):
         process = Process(executes_protocol=Protocol(name=nextcell[1]))
         nextcell = next(mr_iter)
         cn += 1
-        G.add_node(process)
-    return nextcell, mr_iter, G, cn
+    return nextcell, mr_iter, process, cn
 
 
 def parse_row(header, row, rn):
-    keygen = lambda x: ('.'.join(x) if x[1] else None)
+    #keygen = lambda x: ('.'.join(x) if x[1] else None)
     G = nx.DiGraph()
     mr_iter = iter(map(lambda x: (x[0], x[1]), zip(header, row)))
     nextcell = next(mr_iter)
     cn = 0
     checkfor('Source Name', nextcell)
-    nextcell, mr_iter, G, cn = parse_material('Source Name', nextcell, mr_iter, G, rn, cn)
+    nextcell, mr_iter, M, cn = parse_material('Source Name', nextcell, mr_iter, rn, cn)
     while nextcell:
         checkfor('Protocol REF', nextcell)
-        print('Protocol REF', nextcell, mr_iter, G, rn, cn)
-        nextcell, mr_iter, G, cn = parse_protocol_ref('Protocol REF', nextcell, mr_iter, G, rn, cn)
+        print('Protocol REF', nextcell, mr_iter, rn, cn)
+        nextcell, mr_iter, P, cn = parse_protocol_ref('Protocol REF', nextcell, mr_iter, rn, cn)
+        G.add_edge(M, P)
         checkfor('Sample Name', nextcell)
-        nextcell, mr_iter, G, cn = parse_material('Sample Name', nextcell, mr_iter, G, rn, cn)
-        return G
+        nextcell, mr_iter, M, cn = parse_material('Sample Name', nextcell, mr_iter, rn, cn)
+        G.add_edge(P, M)
+    return G
 
 
 with open('/Users/dj/Development/ISA/isatools-core/tests/data/tab/BII-I-1/s_BII-S-1.txt') as fp:
