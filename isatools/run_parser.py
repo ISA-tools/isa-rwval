@@ -179,6 +179,21 @@ def parse_row(header, row, rn):
         G.add_edge(P, M)
     return G
 
+keytable = [
+    ['Source Name.so1', 'Protocol REF', 'Sample Name.sam1'],
+    ['Source Name.so1', 'Protocol REF', 'Sample Name.sam2'],
+    ['Source Name.so2', 'Protocol REF', 'Sample Name.sam3'],
+    ['Source Name.so2', 'Protocol REF', 'Sample Name.sam3'],
+]
+
+
+def checkid(idstr):
+    re.compile('^[\w;\w;\w]+$').match(idstr)
+
+
+def dump_graph(G):
+    return nx.node_link_data(G)
+
 
 with open('/Users/dj/Development/ISA/isatools-core/tests/data/tab/BII-I-1/s_BII-S-1.txt') as fp:
     reader = csv.reader(fp, delimiter='\t')
