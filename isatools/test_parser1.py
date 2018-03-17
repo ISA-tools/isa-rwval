@@ -195,6 +195,9 @@ def dump_graph(G):
     return nx.node_link_data(G)
 
 
+
+
+
 with open('/Users/dj/Development/ISA/isatools-core/tests/data/tab/BII-I-1/s_BII-S-1.txt') as fp:
     reader = csv.reader(fp, delimiter='\t')
     header = next(reader)  # always assume the first row is the header

@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(
-    name='isa.rwval',
+    name='isa-rwval',
     version='0.10.0',
     packages=['isatools',
               'isatools.errors'
