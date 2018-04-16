@@ -3,7 +3,7 @@ python:
 - '3.6'
 - '2.7'
 before_install:
-- git clone -b tests --single-branch http://github.com/ISA-tools/ISAdatasets tests/data
+- git clone -b tests-dev --single-branch http://github.com/ISA-tools/ISAdatasets tests/data
 install:
 - pip install --upgrade pip && pip install -r requirements-tests.txt
 - pip install tox-travis
