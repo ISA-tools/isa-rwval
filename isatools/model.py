@@ -3784,6 +3784,42 @@ class FreeInductionDecayDataFile(DataFile):
         return not self == other
 
 
+class MetaboliteAssignmentFile(DataFile):
+    """Represents a metabolite assignment file (MAF) in an experimental graph"""
+    def __init__(self, filename='', id_='', generated_from=None, comments=None):
+        super(MetaboliteAssignmentFile, self).__init__(
+            filename=filename, id_=id_, generated_from=generated_from,
+            comments=comments)
+
+        self.label = 'Metabolite Assignment File'
+
+    def __repr__(self):
+        return "isatools.model.MetaboliteAssignmentFile(" \
+               "filename='{data_file.filename}', " \
+               "generated_from={data_file.generated_from}, " \
+               "comments={data_file.comments})".format(data_file=self)
+
+    def __str__(self):
+        return """MetaboliteAssignmentFile(
+    filename={data_file.filename}
+    generated_from={num_generated_from} Sample objects
+    comments={num_comments} Comment objects
+)""".format(data_file=self, num_generated_from=len(self.generated_from),
+            num_comments=len(self.comments))
+
+    def __hash__(self):
+        return hash(repr(self))
+
+    def __eq__(self, other):
+        return isinstance(other, MetaboliteAssignmentFile) \
+               and self.filename == other.filename \
+               and self.generated_from == other.generated_from \
+               and self.comments == other.comments
+
+    def __ne__(self, other):
+        return not self == other
+
+
 def plink(p1, p2):
     if isinstance(p1, Process) and isinstance(p2, Process):
         p1.next_process = p2

@@ -1,13 +1,17 @@
-
 from __future__ import absolute_import
 
 import os
-
+import logging
 import numpy as np
 import pandas as pd
 
+
 from isatools.isatab_meta import AbstractParser, InvestigationParser, TableParser
 from isatools.model import *
+
+
+log = logging.getLogger(__name__)
+__author__ = 'djcomlab@gmail.com (David Johnson)'
 
 
 class IsaTabSeries(pd.Series):

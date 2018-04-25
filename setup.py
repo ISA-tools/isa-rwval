@@ -3,8 +3,8 @@
 from setuptools import setup
 
 setup(
-    name='isa.rwval',
-    version='0.10.0',
+    name='isa-rwval',
+    version='0.10.1',
     packages=['isatools',
               'isatools.errors'
               ],
@@ -23,8 +23,6 @@ setup(
         'Intended Audience :: System Administrators',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
         ],
     install_requires=[
