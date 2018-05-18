@@ -1,2 +1,2 @@
-networkx
-six
+networkx==1.11
+six==1.10.0
