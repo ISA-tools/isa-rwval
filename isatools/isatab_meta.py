@@ -850,107 +850,39 @@ class LazyAssayTableParser(AbstractParser):
         self.table_header = None
 
     def _parse_other_material(self, table_content):
-        try:
-            extracts = set(map(lambda x: Extract(
-                name=x[self.table_header.index('Extract Name')]),
-                               table_content))
-        except ValueError:
-            extracts = set()
-        try:
-            lextracts = set(map(lambda x: LabeledExtract(
-                name=x[self.table_header.index('Labled Extract Name')]),
-                                table_content))
-        except ValueError:
-            lextracts = set()
+        extracts = set()
+        index = self.table_header.index(
+            'Extract Name') if 'Extract Name' in self.table_header else -1
+        if index > -1:
+            extracts = set(map(lambda x: Extract(name=x[index]), table_content))
+        lextracts = set()
+        index = self.table_header.index(
+            'Labeled Extract Name') if 'Labeled Extract Name' in \
+                                       self.table_header else -1
+        if index > -1:
+            lextracts = set(
+                map(lambda x: LabeledExtract(name=x[index]), table_content))
         self.other_material = set.union(extracts, lextracts)
 
+    def _parse_data_file_type(self, table_content, label, cls):
+        data_files = set()
+        index = self.table_header.index(
+            label) if label in self.table_header else -1
+        if index > -1:
+            data_files = set(
+                map(lambda x: cls(filename=x[index]), table_content))
+        return data_files
+
     def _parse_data_files(self, table_content):
-        try:
-            raw_data_files = set(map(lambda x: RawDataFile(
-                filename=x[self.table_header.index('Raw Data File')]),
-                                     table_content))
-        except ValueError:
-            raw_data_files = set()
-        try:
-            raw_spectral_data_files = set(map(lambda x: RawSpectralDataFile(
-                filename=x[self.table_header.index('Raw Spectral Data File')]),
-                                     table_content))
-        except ValueError:
-            raw_spectral_data_files = set()
-        try:
-            derived_spectral_data_files = set(map(lambda x: DerivedSpectralDataFile(
-                filename=x[self.table_header.index('Derived Spectral Data File')]),
-                                     table_content))
-        except ValueError:
-            derived_spectral_data_files = set()
-        try:
-            derived_array_data_files = set(map(lambda x: DerivedArrayDataFile(
-                filename=x[self.table_header.index('Derived Array Data File')]),
-                                     table_content))
-        except ValueError:
-            derived_array_data_files = set()
-        try:
-            array_data_files = set(map(lambda x: ArrayDataFile(
-                filename=x[self.table_header.index('Array Data File')]),
-                                     table_content))
-        except ValueError:
-            array_data_files = set()
-        try:
-            protein_assignment_files = set(map(lambda x: ProteinAssignmentFile(
-                filename=x[self.table_header.index('Protein Assignment File')]),
-                                     table_content))
-        except ValueError:
-            protein_assignment_files = set()
-        try:
-            post_translational_modification__assignment_files = set(
-                map(lambda x: PostTranslationalModificationAssignmentFile(
-                    filename=x[self.table_header.index(
-                        'Post Translational Modification Assignment File')]),
-                    table_content))
-        except ValueError:
-            post_translational_modification__assignment_files = set()
-        try:
-            acquisition_parameter_data_files = set(map(lambda x: AcquisitionParameterDataFile(
-                filename=x[self.table_header.index('Acquisition Parameter Data File')]),
-                                               table_content))
-        except ValueError:
-            acquisition_parameter_data_files = set()
-        try:
-            free_induction_decay_data_files = set(map(lambda x: FreeInductionDecayDataFile(
-                filename=x[self.table_header.index('Free Induction Decay Data File')]),
-                                               table_content))
-        except ValueError:
-            free_induction_decay_data_files = set()
-        try:
-            derived_array_data_matrix_files = set(map(lambda x: DerivedArrayDataMatrixFile(
-                filename=x[self.table_header.index('Derived Array Data Matrix File')]),
-                                               table_content))
-        except ValueError:
-            derived_array_data_matrix_files = set()
-        try:
-            derived_data_files = set(map(lambda x: DerivedDataFile(
-                filename=x[self.table_header.index('Derived Data File')]),
-                                               table_content))
-        except ValueError:
-            derived_data_files = set()
-        try:
-            metabolite_assignment_files = set(map(lambda x: MetaboliteAssignmentFile(
-                filename=x[self.table_header.index('Derived Data File')]),
-                                         table_content))
-        except ValueError:
-            metabolite_assignment_files = set()
-        self.data_files = \
-            set.union(
-                raw_data_files, raw_spectral_data_files, derived_data_files,
-                derived_spectral_data_files, array_data_files,
-                derived_array_data_files, protein_assignment_files,
-                post_translational_modification__assignment_files,
-                acquisition_parameter_data_files,
-                free_induction_decay_data_files,
-                derived_array_data_matrix_files,
-                metabolite_assignment_files,
-                free_induction_decay_data_files
-            )
+        for cls in (RawDataFile, RawSpectralDataFile, DerivedSpectralDataFile,
+                    DerivedArrayDataFile, ArrayDataFile, ProteinAssignmentFile,
+                    PostTranslationalModificationAssignmentFile,
+                    AcquisitionParameterDataFile, FreeInductionDecayDataFile,
+                    DerivedArrayDataMatrixFile, DerivedDataFile,
+                    MetaboliteAssignmentFile):
+            self.data_files.update(
+                self._parse_data_file_type(table_content=table_content,
+                                           label=cls.label, cls=cls))
 
     def _parse(self, filebuffer):
 
@@ -962,7 +894,7 @@ class LazyAssayTableParser(AbstractParser):
 
         isa_csv = csv.reader(filebuffer, delimiter='\t', quotechar='"')
         self.table_header = next(isa_csv)
-        table_content = [x for x in isa_csv]
+        table_content = [x for x in isa_csv if x]
         self._parse_other_material(table_content=table_content)
         self._parse_data_files(table_content=table_content)
         if isinstance(filebuffer, str):
