@@ -880,9 +880,8 @@ class LazyAssayTableParser(AbstractParser):
                     AcquisitionParameterDataFile, FreeInductionDecayDataFile,
                     DerivedArrayDataMatrixFile, DerivedDataFile,
                     MetaboliteAssignmentFile):
-            self.data_files.update(
-                self._parse_data_file_type(table_content=table_content,
-                                           label=cls.label, cls=cls))
+            self.data_files = self.data_files | self._parse_data_file_type(
+                table_content=table_content, label=cls().label, cls=cls)
 
     def _parse(self, filebuffer):
 
