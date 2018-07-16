@@ -910,6 +910,10 @@ class ParserIntegrationTest(unittest.TestCase):
             self.assertEqual(
                 len(self.parser.isa.studies[1].assays[-1].process_sequence), 30)
 
-    def test_parser_with_MTBLS30_2(self):
+    def test_parser_with_MTBLS30_w4m(self):
         self.parser.parse(os.path.join(
-            self._tab_data_dir, 'MTBLS30-2', 'i_Investigation.txt'))
+            self._tab_data_dir, 'MTBLS30-w4m', 'i_Investigation.txt'))
+
+    def test_parser_with_MTBLS520(self):
+        self.parser.parse(os.path.join(
+            self._tab_data_dir, 'MTBLS520', 'i_Investigation.txt'))

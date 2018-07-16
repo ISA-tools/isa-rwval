@@ -671,6 +671,16 @@ class InvestigationParser(AbstractParser):
         status_term_source = section.get(' '.join(
             [investigation_or_study_prefix, publication_prefix,
              status_prefix, self._term_source_ref_postfix]))
+
+        # None is refused by zip_longest(), since it requires iterable types.
+        # So we replace None values by empty lists.
+        if status is None:
+            status = []
+        if status_accession is None:
+            status_accession = []
+        if status_term_source is None:
+            status_term_source = []
+
         for p, d, a, t, s, s_acc, s_src in zip_longest(
                 pubmed_id, doi, author_list, title, status,
                 status_accession, status_term_source, fillvalue=''):
