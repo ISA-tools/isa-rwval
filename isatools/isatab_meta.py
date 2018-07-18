@@ -375,13 +375,12 @@ class InvestigationParser(AbstractParser):
             'STUDY ASSAYS', 'STUDY PROTOCOLS', 'STUDY CONTACTS')
         section_slices = []
         section_delimiters = []
-        tabreader = csv.reader(filebuffer, delimiter='\t')
-        for sec_index, row in enumerate(tabreader):
-            label = next(iter(row), None)
-            if label is not None and not label.strip().startswith('#'):
-                if label in section_keywords:
-                    section_delimiters.append(sec_index)
+        tablines = filebuffer.read().splitlines()
+        for sec_index, line in enumerate(tablines):
+            if line.startswith(section_keywords):
+                section_delimiters.append(sec_index)
         filebuffer.seek(0)
+        print(section_delimiters)
         for this_sec_index, next_sec_index in self._pairwise(
                 section_delimiters):
             section_slice = []
@@ -389,8 +388,9 @@ class InvestigationParser(AbstractParser):
             secreader = csv.reader(sec_f, delimiter='\t')
             for row in secreader:
                 section_slice.append(row)
-            filebuffer.seek(0)
             section_slices.append(section_slice)
+            filebuffer.seek(0)
+            print(section_slice)
         sec_f = itertools.islice(filebuffer, section_delimiters[-1], None)
         section_slice = []
         secreader = csv.reader(sec_f, delimiter='\t')
