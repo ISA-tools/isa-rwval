@@ -380,7 +380,6 @@ class InvestigationParser(AbstractParser):
             if line.startswith(section_keywords):
                 section_delimiters.append(sec_index)
         filebuffer.seek(0)
-        print(section_delimiters)
         for this_sec_index, next_sec_index in self._pairwise(
                 section_delimiters):
             section_slice = []
@@ -390,7 +389,6 @@ class InvestigationParser(AbstractParser):
                 section_slice.append(row)
             section_slices.append(section_slice)
             filebuffer.seek(0)
-            print(section_slice)
         sec_f = itertools.islice(filebuffer, section_delimiters[-1], None)
         section_slice = []
         secreader = csv.reader(sec_f, delimiter='\t')
