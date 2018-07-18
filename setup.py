@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='isa-rwval',
-    version='0.10.6',
+    version='0.10.7',
     packages=['isatools',
               'isatools.errors'
               ],
