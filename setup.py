@@ -27,7 +27,7 @@ setup(
         ],
     install_requires=[
         'networkx==1.11',
-        'six==1.11.0',
+        'six>=1.11.0',
     ],
     extras_require={
         'viz': ['matplotlib'],
