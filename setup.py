@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='isa-rwval',
-    version='0.10.8',
+    version='0.10.9',
     packages=['isatools',
               'isatools.errors'
               ],
@@ -27,7 +27,7 @@ setup(
         ],
     install_requires=[
         'networkx==1.11',
-        'six>=1.11.0,<1.13',
+        'six>=1.11.0',
     ],
     extras_require={
         'viz': ['matplotlib'],
