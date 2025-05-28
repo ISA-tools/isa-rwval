@@ -309,13 +309,13 @@ class TableParser(AbstractParser):
            offset_2r_col.startswith('Term Accession Number'):
             value = OntologyAnnotation(term=str(cell_value))
             term_source_value = row[offset_1r_col]
-            if term_source_value is not '':
+            if term_source_value != '':
                 try:
                     value.term_source = self.ontology_sources[term_source_value]
                 except KeyError:
                     log.debug('term source: %s not found', term_source_value)
             term_accession_value = row[offset_2r_col]
-            if term_accession_value is not '':
+            if term_accession_value != '':
                 value.term_accession = str(term_accession_value)
             return value, None
         try:
@@ -332,14 +332,14 @@ class TableParser(AbstractParser):
                 unit_term_value = OntologyAnnotation(term=category_key)
                 self.unit_categories[category_key] = unit_term_value
                 unit_term_source_value = row[offset_2r_col]
-                if unit_term_source_value is not '':
+                if unit_term_source_value != '':
                     try:
                         unit_term_value.term_source = self.ontology_sources[
                             unit_term_source_value]
                     except KeyError:
                         log.debug('term source: %s not found', unit_term_source_value)
                 term_accession_value = row[offset_3r_col]
-                if term_accession_value is not '':
+                if term_accession_value != '':
                     unit_term_value.term_accession = term_accession_value
             return cell_value, unit_term_value
         else:
